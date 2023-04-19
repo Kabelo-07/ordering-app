@@ -1,0 +1,116 @@
+version: '3.7'
+
+services:
+  orders:
+    build:
+      context: .
+      dockerfile: ./apps/orders/Dockerfile
+      target: development
+    command: npm run start:dev orders
+    env_file:
+     - ./apps/orders/.env
+    depends_on:
+     - mongodb-primary
+     - mongodb-secondary
+     - mongodb-arbiter
+     - billing
+     - auth
+     - rabbitmq
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+    ports:
+      - 3000:3000
+
+  billing:
+    build:
+      context: .
+      dockerfile: ./apps/billing/Dockerfile
+      target: development
+    command: npm run start:dev billing
+    env_file:
+     - ./apps/billing/.env
+    depends_on:
+     - mongodb-primary
+     - mongodb-secondary
+     - mongodb-arbiter
+     - rabbitmq
+     - auth
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+
+  auth:
+    build:
+      context: .
+      dockerfile: ./apps/auth/Dockerfile
+      target: development
+    command: npm run start:dev auth
+    ports:
+      - '3001:3001'
+    env_file:
+     - ./apps/auth/.env
+    depends_on:
+     - mongodb-primary
+     - mongodb-secondary
+     - mongodb-arbiter
+     - rabbitmq
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+
+  mongodb-primary:
+    image: mongo:latest
+    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
+    environment:
+      - MONGODB_ADVERTISED_HOSTNAME=mongodb-primary
+      - MONGODB_REPLICA_SET_MODE=primary
+      - MONGODB_ROOT_PASSWORD=password123
+      - MONGODB_REPLICA_SET_KEY=replicasetkey123
+    volumes:
+      - 'mongodb_master_data:/bitnami/mongodb'
+    ports:
+      - 27017:27017
+
+  mongodb-secondary:
+    image: mongo:latest
+    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27027"]
+    environment:
+      - MONGODB_ADVERTISED_HOSTNAME=mongodb-secondary
+      - MONGODB_REPLICA_SET_MODE=secondary
+      - MONGODB_INITIAL_PRIMARY_HOST=mongodb-primary
+      - MONGODB_INITIAL_PRIMARY_ROOT_PASSWORD=password123
+      - MONGODB_REPLICA_SET_KEY=replicasetkey123
+    ports:
+      - 27027:27027
+
+  mongodb-arbiter:
+    image: mongo:latest
+    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27037"]
+    environment:
+      - MONGODB_ADVERTISED_HOSTNAME=mongodb-arbiter
+      - MONGODB_REPLICA_SET_MODE=arbiter
+      - MONGODB_INITIAL_PRIMARY_HOST=mongodb-primary
+      - MONGODB_INITIAL_PRIMARY_ROOT_PASSWORD=password123
+      - MONGODB_REPLICA_SET_KEY=replicasetkey123
+    ports:
+      - 27037:27037
+  #mongosetup:
+  ##  image: mongo
+  #  depends_on:
+  #    - mongodb-primary
+  #    - mongodb-secondary
+  #    - mongodb-arbiter
+  #  volumes:
+  #    - .:/scripts
+  #  restart: "no"
+  #  entrypoint: [ "bash", "/scripts/mongo_setup.sh"]    
+  
+  rabbitmq:
+    image: rabbitmq
+    ports:
+     - 5672:5672
+
+volumes:
+  mongodb_master_data:
+    driver: local

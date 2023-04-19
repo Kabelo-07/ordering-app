@@ -1,0 +1,16 @@
+# Metadata files
+.git
+.gitignore
+.dockerignore
+
+# Build/dependencies files
+dist.do
+node_modules
+
+# DotEnv files
+*.env
+
+# Miscelaneous files
+.eslintrc.js
+.prettierrc
+README.md
